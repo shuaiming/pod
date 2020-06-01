@@ -1,8 +1,10 @@
 package beans
 
 import (
+	"bytes"
 	"log"
 	"net/http"
+	"text/template"
 	"time"
 )
 
@@ -56,11 +58,27 @@ func (rw *responseWriter) Status() int {
 // Access write access log with log.Logger
 type Access struct {
 	*log.Logger
+	format string
+}
+
+type accessValues struct {
+	RemoteAddr string
+	HTTPMethod string
+	URLPath    string
+	TimeSpend  int64
+	WriteSize  int
+	Status     int
 }
 
 // NewAccess new Access
-func NewAccess(l *log.Logger) *Access {
-	return &Access{l}
+func NewAccess(l *log.Logger, optional ...string) *Access {
+	format := "{{.RemoteAddr}} {{.HTTPMethod}} {{.URLPath}} {{.TimeSpend}} {{.WriteSize}} {{.Status}}"
+
+	if len(optional) > 0 {
+		format = optional[0]
+	}
+
+	return &Access{l, format}
 }
 
 // ServeHTTP implement pod.Handler
@@ -75,10 +93,27 @@ func (a *Access) ServeHTTP(
 	next(newrw, r)
 
 	timeEnd := time.Now()
-	du := timeEnd.Sub(timeStart)
+	timeSpend := timeEnd.Sub(timeStart)
 
-	// TODO: 增加自定义日志输出格式？
-	a.Printf(
-		"%s %s %s %s %d %d",
-		r.RemoteAddr, httpMethod, urlPath, du, newrw.Size(), newrw.Status())
+	values := accessValues{
+		RemoteAddr: r.RemoteAddr,
+		HTTPMethod: httpMethod,
+		URLPath:    urlPath,
+		TimeSpend:  timeSpend.Milliseconds(),
+		WriteSize:  newrw.Size(),
+		Status:     newrw.Status(),
+	}
+
+	tmpl, err := template.New("access").Parse(a.format)
+	if err != nil {
+		a.Println(err)
+	}
+
+	var tpl bytes.Buffer
+	err = tmpl.Execute(&tpl, values)
+	if err != nil {
+		a.Println(err)
+	}
+
+	a.Println(tpl.String())
 }
