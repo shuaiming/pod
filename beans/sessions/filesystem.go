@@ -139,25 +139,35 @@ func (ms *FilesystemStore) GC() (int, int) {
 		}
 
 		from++
-		if file, err := ioutil.ReadFile(path); err == nil {
-			var s FileSession
-			r := bytes.NewBuffer(file)
-			dec := gob.NewDecoder(r)
-			if err := dec.Decode(&s); err == nil {
-				if !s.expired() {
-					return nil
-				}
-			}
+
+		file, err := ioutil.ReadFile(path)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+
+		var s FileSession
+		r := bytes.NewBuffer(file)
+
+		err = gob.NewDecoder(r).Decode(&s)
+		if err != nil {
 			// If a file can not be decoded,
 			// It would be safer to keep it.
 			log.Println(err)
 			return err
 		}
 
-		err = os.Remove(path)
-		if err == nil {
-			purged++
+		if !s.expired() {
+			return nil
 		}
+
+		err = os.Remove(path)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+
+		purged++
 
 		return err
 	})
