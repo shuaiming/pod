@@ -57,7 +57,6 @@ func (rw *responseWriter) Status() int {
 
 // Access write access log with log.Logger
 type Access struct {
-	*log.Logger
 	format string
 }
 
@@ -71,14 +70,14 @@ type accessValues struct {
 }
 
 // NewAccess new Access
-func NewAccess(l *log.Logger, optional ...string) *Access {
+func NewAccess(optional ...string) *Access {
 	format := "{{.RemoteAddr}} {{.HTTPMethod}} {{.URLPath}} {{.TimeSpend}} {{.WriteSize}} {{.Status}}"
 
 	if len(optional) > 0 {
 		format = optional[0]
 	}
 
-	return &Access{l, format}
+	return &Access{format}
 }
 
 // ServeHTTP implement pod.Handler
@@ -106,14 +105,14 @@ func (a *Access) ServeHTTP(
 
 	tmpl, err := template.New("access").Parse(a.format)
 	if err != nil {
-		a.Println(err)
+		log.Println(err)
 	}
 
 	var tpl bytes.Buffer
 	err = tmpl.Execute(&tpl, values)
 	if err != nil {
-		a.Println(err)
+		log.Println(err)
 	}
 
-	a.Println(tpl.String())
+	log.Println(tpl.String())
 }
