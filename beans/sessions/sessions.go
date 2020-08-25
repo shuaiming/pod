@@ -101,6 +101,7 @@ func (ss *Sessions) ServeHTTP(
 		Value:    sid,
 		MaxAge:   ss.maxAge,
 		HttpOnly: true,
+		Path:     "/",
 	}
 
 	http.SetCookie(rw, &cookie)
